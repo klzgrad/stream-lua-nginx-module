@@ -88,6 +88,7 @@ static int ngx_stream_lua_socket_read_error_retval_handler(ngx_stream_lua_reques
 static int ngx_stream_lua_socket_write_error_retval_handler(ngx_stream_lua_request_t *r,
     ngx_stream_lua_socket_tcp_upstream_t *u, lua_State *L);
 static ngx_int_t ngx_stream_lua_socket_read_all(void *data, ssize_t bytes);
+static ngx_int_t ngx_stream_lua_socket_read_any(void *data, ssize_t bytes);
 static ngx_int_t ngx_stream_lua_socket_read_until(void *data, ssize_t bytes);
 static ngx_int_t ngx_stream_lua_socket_read_chunk(void *data, ssize_t bytes);
 static int ngx_stream_lua_socket_tcp_receiveuntil(lua_State *L);
@@ -471,7 +472,7 @@ ngx_stream_lua_socket_tcp_connect(lua_State *L)
         switch (lua_type(L, -1)) {
         case LUA_TNUMBER:
             lua_tostring(L, -1);
-
+        /* fallthrough */
         case LUA_TSTRING:
             custom_pool = 1;
 
@@ -1812,6 +1813,10 @@ ngx_stream_lua_socket_tcp_receive(lua_State *L)
                 u->input_filter = ngx_stream_lua_socket_read_all;
                 break;
 
+            case 'y':
+                u->input_filter = ngx_stream_lua_socket_read_any;
+                break;
+
             default:
                 return luaL_argerror(L, 2, "bad pattern argument");
                 break;
@@ -1993,6 +1998,33 @@ ngx_stream_lua_socket_read_all(void *data, ssize_t bytes)
     b->pos += bytes;
 
     return NGX_AGAIN;
+}
+
+static ngx_int_t
+ngx_stream_lua_socket_read_any(void *data, ssize_t bytes)
+{
+    ngx_stream_lua_socket_tcp_upstream_t      *u = data;
+
+    ngx_buf_t                   *b;
+#if (NGX_DEBUG)
+    ngx_stream_lua_request_t          *r;
+
+    r = u->request;
+#endif
+
+    ngx_log_debug0(NGX_LOG_DEBUG_STREAM, r->connection->log, 0,
+                   "stream lua tcp socket read any");
+
+    if (bytes == 0) {
+        return NGX_OK;
+    }
+
+    b = &u->buffer;
+
+    u->buf_in->buf->last += bytes;
+    b->pos += bytes;
+
+    return NGX_OK;
 }
 
 
