@@ -540,7 +540,6 @@ ngx_stream_lua_ffi_balancer_set_current_peer(ngx_stream_lua_request_t *r,
     url.url.len = addr_len;
     url.default_port = (in_port_t) port;
     url.uri_part = 0;
-    url.no_resolve = 1;
 
     if (ngx_parse_url(r->pool, &url) != NGX_OK) {
         if (url.err) {
